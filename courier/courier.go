@@ -141,6 +141,9 @@ func (m *Courier) watchMessages(ctx context.Context, errChan chan error) {
 				if errors.Is(err, ErrQueueEmpty) {
 					return nil
 				}
+				m.d.Logger().
+					WithError(err).
+					Error("Unable to fetch next courier messages to send.")
 				return err
 			}
 			if len(messages) > 0 {
