@@ -136,46 +136,8 @@ func (m *Courier) watchMessages(ctx context.Context, errChan chan error) {
 				}
 				return err
 			}
-			for k := range messages {
-				var msg = messages[k]
-
-				switch msg.Type {
-				case MessageTypeEmail:
-					from := m.c.CourierSMTPFrom()
-					gm := gomail.NewMessage()
-					gm.SetHeader("From", from)
-					gm.SetHeader("To", msg.Recipient)
-					gm.SetHeader("Subject", msg.Subject)
-					gm.SetBody("text/plain", msg.Body)
-					gm.AddAlternative("text/html", msg.Body)
-
-					if err := m.Dialer.DialAndSend(ctx, gm); err != nil {
-						m.d.Logger().
-							WithError(err).
-							WithField("smtp_server", fmt.Sprintf("%s:%d", m.Dialer.Host, m.Dialer.Port)).
-							WithField("smtp_ssl_enabled", m.Dialer.SSL).
-							// WithField("email_to", msg.Recipient).
-							WithField("message_from", from).
-							Error("Unable to send email using SMTP connection.")
-						continue
-					}
-
-					if err := m.d.CourierPersister().SetMessageStatus(ctx, msg.ID, MessageStatusSent); err != nil {
-						m.d.Logger().
-							WithError(err).
-							WithField("message_id", msg.ID).
-							Error(`Unable to set the message status to "sent".`)
-						return err
-					}
-
-					m.d.Logger().
-						WithField("message_id", msg.ID).
-						WithField("message_type", msg.Type).
-						WithField("message_subject", msg.Subject).
-						Debug("Courier sent out message.")
-				default:
-					return errors.Errorf("received unexpected message type: %d", msg.Type)
-				}
+			if len(messages) > 0 {
+				return m.sendMessages(ctx, messages)
 			}
 
 			return nil
@@ -185,4 +147,59 @@ func (m *Courier) watchMessages(ctx context.Context, errChan chan error) {
 		}
 		time.Sleep(time.Second)
 	}
+}
+
+func (m *Courier) sendMessages(ctx context.Context, messages []Message) error {
+	sender, err := m.Dialer.Dial(ctx)
+	if err != nil {
+		m.d.Logger().
+			WithError(err).
+			WithField("smtp_server", fmt.Sprintf("%s:%d", m.Dialer.Host, m.Dialer.Port)).
+			WithField("smtp_ssl_enabled", m.Dialer.SSL).
+			Error("Unable to connect to SMTP server.")
+		return err
+	}
+	defer sender.Close()
+
+	for _, msg := range messages {
+		switch msg.Type {
+		case MessageTypeEmail:
+			from := m.c.CourierSMTPFrom()
+			gm := gomail.NewMessage()
+			gm.SetHeader("From", from)
+			gm.SetHeader("To", msg.Recipient)
+			gm.SetHeader("Subject", msg.Subject)
+			gm.SetBody("text/plain", msg.Body)
+			gm.AddAlternative("text/html", msg.Body)
+
+			if err := gomail.Send(ctx, sender, gm); err != nil {
+				m.d.Logger().
+					WithError(err).
+					WithField("smtp_server", fmt.Sprintf("%s:%d", m.Dialer.Host, m.Dialer.Port)).
+					WithField("smtp_ssl_enabled", m.Dialer.SSL).
+					// WithField("email_to", msg.Recipient).
+					WithField("message_from", from).
+					Error("Unable to send email using SMTP connection.")
+				continue
+			}
+
+			if err := m.d.CourierPersister().SetMessageStatus(ctx, msg.ID, MessageStatusSent); err != nil {
+				m.d.Logger().
+					WithError(err).
+					WithField("message_id", msg.ID).
+					Error(`Unable to set the message status to "sent".`)
+				return err
+			}
+
+			m.d.Logger().
+				WithField("message_id", msg.ID).
+				WithField("message_type", msg.Type).
+				WithField("message_subject", msg.Subject).
+				Debug("Courier sent out message.")
+		default:
+			return errors.Errorf("received unexpected message type: %d", msg.Type)
+		}
+	}
+
+	return nil
 }
