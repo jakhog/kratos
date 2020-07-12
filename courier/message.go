@@ -10,7 +10,9 @@ type MessageStatus int
 
 const (
 	MessageStatusQueued MessageStatus = iota + 1
+	MessageStatusFailing
 	MessageStatusSent
+	MessageStatusAbandoned
 )
 
 type MessageType int
@@ -26,6 +28,10 @@ type Message struct {
 	Recipient string        `json:"-" db:"recipient"`
 	Body      string        `json:"-" db:"body"`
 	Subject   string        `json:"-" db:"subject"`
+
+	SendDeadline        *time.Time     `json:"-" db:"send_deadline"`
+	LastSendAttemptedAt *time.Time     `json:"-" db:"last_send_attempted_at"`
+	NextSendInterval    *time.Duration `json:"-" db:"next_send_interval"`
 
 	// CreatedAt is a helper struct field for gobuffalo.pop.
 	CreatedAt time.Time `json:"-" faker:"-" db:"created_at"`

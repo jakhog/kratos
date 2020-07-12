@@ -1,0 +1,5 @@
+add_column("courier_messages", "send_deadline", "timestamp", {"null": true})
+add_column("courier_messages", "last_send_attempted_at", "timestamp", {"null": true})
+add_column("courier_messages", "next_send_interval", "integer", {"null": true})
+
+sql("UPDATE courier_messages SET status = 3 WHERE status = 2;")

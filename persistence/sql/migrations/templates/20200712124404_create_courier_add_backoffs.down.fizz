@@ -1,0 +1,7 @@
+drop_column("courier_messages", "send_deadline")
+drop_column("courier_messages", "last_send_attempted_at")
+drop_column("courier_messages", "next_send_interval")
+
+sql("UPDATE courier_messages SET status = 1 WHERE status = 2;")
+sql("UPDATE courier_messages SET status = 2 WHERE status = 3;")
+sql("UPDATE courier_messages SET status = 2 WHERE status = 4;")
