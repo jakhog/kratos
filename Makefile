@@ -21,7 +21,7 @@ ifneq ("$(shell base64 Makefile))","$(shell cat .bin/.lock)")
 		go build -o .bin/packr2 github.com/gobuffalo/packr/v2/packr2
 		go build -o .bin/yq github.com/mikefarah/yq
 		go build -o .bin/pkger github.com/markbates/pkger/cmd/pkger
-		go build -o .bin/ory github.com/ory/cli
+		go build -o .bin/ory -tags sqlite github.com/ory/cli
 		npm ci
 		echo "$$(base64 Makefile)" > .bin/.lock
 endif
