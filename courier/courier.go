@@ -124,6 +124,13 @@ func (m *Courier) Shutdown(ctx context.Context) error {
 
 func (m *Courier) watchMessages(ctx context.Context, errChan chan error) {
 	for {
+		bc := backoff.NewExponentialBackOff()
+		bc.InitialInterval = time.Second
+		bc.MaxInterval = time.Minute * 5
+		bc.Multiplier = 2
+		bc.MaxElapsedTime = 0
+		bc.Reset()
+
 		if err := backoff.Retry(func() error {
 			if len(m.Dialer.Host) == 0 {
 				return errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Courier tried to deliver an email but courier.smtp_url is not set!"))
@@ -141,7 +148,7 @@ func (m *Courier) watchMessages(ctx context.Context, errChan chan error) {
 			}
 
 			return nil
-		}, backoff.NewExponentialBackOff()); err != nil {
+		}, bc); err != nil {
 			errChan <- err
 			return
 		}
